@@ -1,0 +1,6 @@
+Access the API locally with:
+
+  kubectl port-forward service/{{ include "aegisops.fullname" . }} 8080:{{ .Values.service.port }}
+
+Then open http://127.0.0.1:8080/docs
+
