@@ -2,29 +2,27 @@
 
 ## Current scope
 
-The first milestone contains one stateless FastAPI workload, its delivery
-pipeline and a hardened Kubernetes deployment. Later milestones add GitOps,
-observability, policy enforcement, runtime detection and incident exercises.
+The platform covers build-time, admission-time and runtime controls around a
+stateless FastAPI workload. It is designed for a local laboratory and portfolio
+demonstration, not as a drop-in production platform.
 
 ```text
 Developer
     |
     v
-Git repository ----> GitHub Actions
-                         |-- tests and lint
-                         |-- Helm validation
-                         |-- secret detection
-                         `-- image build and vulnerability scan
-                                      |
-                                      v
-                                OCI image
-                                      |
-                                      v
-                              Kubernetes cluster
-                                      |
-                        +-------------+-------------+
-                        |             |             |
-                     health        metrics       orders API
+Git repository ---> GitHub Actions ---> GHCR + SBOM + attestations
+      |                                      |
+      |                                      v
+      `------------> Argo CD ----------> Kyverno admission
+                           |                  |
+                           v                  v
+                     dev/prod workloads --> Kubernetes
+                           |                  |
+                +----------+----------+       v
+                |          |          |     Falco
+            Prometheus    Loki      Tempo      |
+                \          |          /        |
+                 +------ Grafana <-------------+
 ```
 
 ## Design decisions
@@ -39,13 +37,21 @@ Git repository ----> GitHub Actions
 - CPU and memory requests and limits are mandatory from the first deployment.
 - The application exposes separate liveness and readiness endpoints.
 - Fault injection is configured only at process startup to keep it auditable.
+- Git remains the desired-state source; Argo CD prunes drift and self-heals.
+- Image verification begins in Audit mode and can move to Deny after a signed
+  release is available.
+- SLOs are based on availability and p95 latency rather than infrastructure
+  health alone.
+- Security detections include a MITRE ATT&CK identifier and link to a runbook.
 
-## Planned platform increments
+## Delivery and control flow
 
-1. Argo CD application and environment repository layout.
-2. Prometheus, Grafana, Loki, Tempo and OpenTelemetry Collector.
-3. SLI/SLO definitions, burn-rate alerts and runbooks.
-4. Kyverno admission policies with automated policy tests.
-5. SBOM generation, image signing and provenance verification.
-6. Falco rules, attack simulations and incident postmortems.
-
+1. Pull requests run tests, linting, Helm rendering, secret detection and an
+   image vulnerability scan.
+2. A `v*` tag builds and publishes an immutable image and associated supply-chain
+   evidence.
+3. Argo CD reconciles platform applications and two workload environments.
+4. Kyverno rejects insecure pod configuration and audits image signatures.
+5. OpenTelemetry and Prometheus provide traces and metrics; Loki stores logs.
+6. Falco detects runtime behavior and forwards structured alerts to Loki.
+7. Runbooks, fault scenarios and postmortems close the incident-response loop.

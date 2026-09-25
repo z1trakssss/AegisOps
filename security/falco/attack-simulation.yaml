@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: aegisops-attack-simulator
+  namespace: aegisops-dev
+  labels:
+    app.kubernetes.io/name: attack-simulator
+    app.kubernetes.io/part-of: aegisops
+    security-test: "true"
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: true
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: simulator
+      image: alpine:3.23
+      command: [/bin/sh, -c]
+      args:
+        - >-
+          id;
+          head -c 32 /var/run/secrets/kubernetes.io/serviceaccount/token;
+          apk --version;
+          sleep 15
+      securityContext:
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
+

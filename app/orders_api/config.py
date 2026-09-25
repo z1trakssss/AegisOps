@@ -7,6 +7,7 @@ DEFAULT_SERVICE_NAME = "orders-api"
 DEFAULT_VERSION = "0.1.0"
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_FAULT_MODE = "none"
+DEFAULT_OTEL_ENDPOINT: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,6 +16,7 @@ class Settings:
     version: str = DEFAULT_VERSION
     log_level: str = DEFAULT_LOG_LEVEL
     fault_mode: str = DEFAULT_FAULT_MODE
+    otel_endpoint: str | None = DEFAULT_OTEL_ENDPOINT
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -23,4 +25,5 @@ class Settings:
             version=getenv("AEGIS_VERSION", DEFAULT_VERSION),
             log_level=getenv("AEGIS_LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
             fault_mode=getenv("AEGIS_FAULT_MODE", DEFAULT_FAULT_MODE).lower(),
+            otel_endpoint=getenv("OTEL_EXPORTER_OTLP_ENDPOINT", DEFAULT_OTEL_ENDPOINT),
         )

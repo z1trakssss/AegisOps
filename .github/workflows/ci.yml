@@ -50,6 +50,8 @@ jobs:
         run: |
           helm lint deploy/helm/aegisops
           helm template aegisops deploy/helm/aegisops --namespace aegisops > /tmp/aegisops.yaml
+          helm template aegisops deploy/helm/aegisops --namespace aegisops-dev --values deploy/helm/aegisops/values-dev.yaml > /tmp/aegisops-dev.yaml
+          helm template aegisops deploy/helm/aegisops --namespace aegisops-prod --values deploy/helm/aegisops/values-prod.yaml > /tmp/aegisops-prod.yaml
 
   container:
     name: Build and scan container

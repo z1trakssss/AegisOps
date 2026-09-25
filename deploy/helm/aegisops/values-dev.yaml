@@ -1,0 +1,23 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/z1trakssss/aegisops-orders-api
+  tag: "0.1.0"
+
+config:
+  logLevel: DEBUG
+  faultMode: none
+  otelEndpoint: http://otel-collector-opentelemetry-collector.monitoring.svc:4317
+
+serviceMonitor:
+  enabled: true
+  labels:
+    release: monitoring
+
+prometheusRule:
+  enabled: true
+  labels:
+    release: monitoring
+
+podDisruptionBudget:
+  enabled: false

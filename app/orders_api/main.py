@@ -13,6 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, ge
 from pydantic import BaseModel, Field
 
 from orders_api.config import Settings
+from orders_api.telemetry import configure_telemetry
 
 LOGGER = logging.getLogger("orders_api")
 REQUESTS = Counter(
@@ -129,6 +130,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=503, detail="fault injection: upstream unavailable")
         return store.create(order_input)
 
+    configure_telemetry(app, app_settings)
     return app
 
 

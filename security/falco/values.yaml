@@ -1,0 +1,74 @@
+driver:
+  kind: modern_ebpf
+
+tty: true
+
+falco:
+  json_output: true
+  json_include_output_property: true
+  priority: notice
+
+falcosidekick:
+  enabled: true
+  config:
+    loki:
+      hostport: http://loki-gateway.monitoring.svc:80
+      minimumpriority: notice
+    webhook:
+      minimumpriority: warning
+
+customRules:
+  aegisops_rules.yaml: |-
+    - macro: aegisops_container
+      condition: container.id != host and k8s.ns.name startswith "aegisops-"
+
+    - macro: aegisops_spawned_process
+      condition: evt.type in (execve, execveat) and evt.dir = <
+
+    - rule: AegisOps Interactive Shell in Container
+      desc: Detect an interactive shell started in an AegisOps workload.
+      condition: aegisops_container and aegisops_spawned_process and proc.name in (bash, sh, zsh, dash)
+      output: >
+        Interactive shell in AegisOps container
+        (mitre=T1059 user=%user.name command=%proc.cmdline pod=%k8s.pod.name
+        namespace=%k8s.ns.name container=%container.name image=%container.image.repository)
+      priority: WARNING
+      tags: [aegisops, container, mitre_execution, T1059]
+
+    - rule: AegisOps Service Account Token Read
+      desc: Detect access to a Kubernetes service account token.
+      condition: >
+        aegisops_container and evt.type in (open, openat, openat2) and evt.dir = < and
+        fd.name startswith /var/run/secrets/kubernetes.io/serviceaccount
+      output: >
+        Service account token accessed
+        (mitre=T1552.007 user=%user.name command=%proc.cmdline file=%fd.name
+        pod=%k8s.pod.name namespace=%k8s.ns.name container=%container.name)
+      priority: CRITICAL
+      tags: [aegisops, credential_access, T1552.007]
+
+    - rule: AegisOps Package Manager in Running Container
+      desc: Detect package installation tools executed after container startup.
+      condition: >
+        aegisops_container and aegisops_spawned_process and
+        proc.name in (apt, apt-get, apk, yum, dnf, rpm, dpkg)
+      output: >
+        Package manager executed in running container
+        (mitre=T1105 user=%user.name command=%proc.cmdline pod=%k8s.pod.name
+        namespace=%k8s.ns.name container=%container.name)
+      priority: WARNING
+      tags: [aegisops, persistence, T1105]
+
+    - rule: AegisOps Sensitive Account File Modified
+      desc: Detect attempted modification of local account databases.
+      condition: >
+        aegisops_container and evt.type in (open, openat, openat2) and evt.dir = < and
+        fd.name in (/etc/passwd, /etc/shadow, /etc/group) and
+        (evt.arg.flags contains O_WRONLY or evt.arg.flags contains O_RDWR)
+      output: >
+        Sensitive account file opened for writing
+        (mitre=T1098 user=%user.name command=%proc.cmdline file=%fd.name
+        pod=%k8s.pod.name namespace=%k8s.ns.name container=%container.name)
+      priority: CRITICAL
+      tags: [aegisops, persistence, T1098]
+

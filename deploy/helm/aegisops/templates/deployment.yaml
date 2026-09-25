@@ -46,6 +46,10 @@ spec:
               value: {{ .Values.config.logLevel | quote }}
             - name: AEGIS_FAULT_MODE
               value: {{ .Values.config.faultMode | quote }}
+            {{- if .Values.config.otelEndpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.config.otelEndpoint | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 8080
@@ -64,4 +68,3 @@ spec:
           emptyDir:
             sizeLimit: 16Mi
       terminationGracePeriodSeconds: 15
-

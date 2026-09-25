@@ -1,0 +1,56 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: aegisops-require-hardened-containers
+  annotations:
+    policies.kyverno.io/title: Require hardened containers
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+spec:
+  validationActions:
+    - Deny
+  failurePolicy: Fail
+  evaluation:
+    background:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  matchConditions:
+    - name: aegisops-namespaces
+      expression: object.metadata.namespace.startsWith('aegisops-')
+  validations:
+    - message: Containers must run as a non-root user.
+      expression: >-
+        object.spec.containers.all(container,
+          container.?securityContext.?runAsNonRoot.orValue(false) == true)
+    - message: Privilege escalation must be disabled.
+      expression: >-
+        object.spec.containers.all(container,
+          container.?securityContext.?allowPrivilegeEscalation.orValue(true) == false)
+    - message: The root filesystem must be read-only.
+      expression: >-
+        object.spec.containers.all(container,
+          container.?securityContext.?readOnlyRootFilesystem.orValue(false) == true)
+    - message: Containers must drop all Linux capabilities.
+      expression: >-
+        object.spec.containers.all(container,
+          container.?securityContext.?capabilities.?drop.orValue([]).exists(capability,
+            capability == 'ALL'))
+    - message: CPU and memory requests and limits are required.
+      expression: >-
+        object.spec.containers.all(container,
+          has(container.resources) &&
+          has(container.resources.requests) &&
+          has(container.resources.limits) &&
+          'cpu' in container.resources.requests &&
+          'memory' in container.resources.requests &&
+          'cpu' in container.resources.limits &&
+          'memory' in container.resources.limits)
+    - message: Mutable latest image tags are forbidden.
+      expression: >-
+        object.spec.containers.all(container, !container.image.endsWith(':latest'))
+

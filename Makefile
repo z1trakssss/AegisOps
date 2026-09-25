@@ -1,4 +1,4 @@
-.PHONY: install run test lint format image cluster-up cluster-down deploy
+.PHONY: install run test lint format image cluster-up cluster-down deploy bootstrap load attack
 
 install:
 	python -m pip install -e ".[dev]"
@@ -29,3 +29,12 @@ cluster-down:
 deploy: image
 	kind load docker-image aegisops/orders-api:dev --name aegisops
 	helm upgrade --install aegisops deploy/helm/aegisops --namespace aegisops --create-namespace --set image.repository=aegisops/orders-api --set image.tag=dev
+
+bootstrap:
+	pwsh -File scripts/bootstrap-platform.ps1
+
+load:
+	kubectl apply -f chaos/load-generator.yaml
+
+attack:
+	kubectl apply -f security/falco/attack-simulation.yaml

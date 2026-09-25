@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: aegisops-environments
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+  generators:
+    - list:
+        elements:
+          - environment: dev
+            namespace: aegisops-dev
+            valuesFile: values-dev.yaml
+          - environment: prod
+            namespace: aegisops-prod
+            valuesFile: values-prod.yaml
+  template:
+    metadata:
+      name: 'aegisops-{{.environment}}'
+      labels:
+        app.kubernetes.io/part-of: aegisops
+        environment: '{{.environment}}'
+    spec:
+      project: aegisops
+      source:
+        repoURL: https://github.com/z1trakssss/AegisOps.git
+        targetRevision: main
+        path: deploy/helm/aegisops
+        helm:
+          releaseName: aegisops
+          valueFiles:
+            - '{{.valuesFile}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m

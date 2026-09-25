@@ -4,22 +4,28 @@ AegisOps is a portfolio-grade DevSecOps, SRE and SOC laboratory built around a
 small orders service. The project demonstrates how software is tested, packaged,
 deployed, observed and protected throughout its lifecycle.
 
-The repository currently provides the **foundation milestone**: a working API,
-automated tests, a hardened container, a secure-by-default Helm chart and CI
-checks. GitOps, full observability, policy enforcement and runtime detection are
-planned as incremental, reviewable milestones.
+The repository provides an end-to-end platform lab: a working API, secure
+software supply chain, GitOps delivery, SRE observability, admission controls,
+runtime detection and reproducible incident exercises.
 
 ## What is included
 
 - FastAPI orders service with OpenAPI documentation.
 - Liveness, readiness and Prometheus metrics endpoints.
-- Controlled failure modes for future SRE exercises.
+- Controlled failure modes for repeatable SRE exercises.
 - Non-root, read-only container configuration.
 - Helm deployment with probes, resource limits, NetworkPolicy, PDB and optional
   HPA and ServiceMonitor.
 - GitHub Actions checks for tests, linting, Helm templates, secrets and container
   vulnerabilities.
-- Local `kind` cluster configuration and incident runbook.
+- Tag-driven GHCR releases with an SPDX SBOM, keyless Cosign signature and
+  GitHub/Sigstore provenance attestations.
+- Argo CD app-of-apps delivery into separate `dev` and `prod` namespaces.
+- Prometheus, Grafana, Loki, Tempo and OpenTelemetry Collector configuration.
+- SLO recording rules and multi-window error-budget burn alerts.
+- Current CEL-based Kyverno policies and keyless image verification.
+- Falco detections mapped to MITRE ATT&CK.
+- Load, drift and attack simulations with incident runbooks and a postmortem.
 
 ## Quick start on Windows
 
@@ -59,19 +65,50 @@ docker compose up --build
 The Compose configuration drops all Linux capabilities, prevents privilege
 escalation and mounts the root filesystem read-only.
 
-## Deploy to local Kubernetes
+## Deploy the complete platform
 
-Install Docker, `kind`, `kubectl` and Helm, then run:
+Install Docker, `kind`, `kubectl` and Helm. On Windows, bootstrap the entire
+platform with:
+
+```powershell
+.\scripts\bootstrap-platform.ps1
+```
+
+The script creates a kind cluster, installs Argo CD, generates a local Grafana
+credential and applies the root GitOps application. Argo CD then installs the
+platform and the `dev` and `prod` workloads from Git.
+
+For a lightweight application-only deployment:
 
 ```bash
 make cluster-up
 make deploy
-kubectl -n aegisops port-forward service/aegisops 8080:80
+kubectl -n aegisops port-forward service/aegisops-aegisops 8080:80
 ```
 
 The default image value in `values.yaml` is intentionally a placeholder. The
 `deploy` target overrides it with the image built and loaded into the local kind
 cluster.
+
+See [the demonstration guide](docs/demo.md) for the complete interview scenario.
+
+## Publish the first signed release
+
+The GitHub release workflow starts on a version tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+It publishes `ghcr.io/z1trakssss/aegisops-orders-api:0.1.0`, generates an SPDX
+SBOM, creates GitHub provenance and SBOM attestations, and signs the digest with
+the workflow's OIDC identity. Verification commands are documented in
+[the release runbook](docs/runbooks/release-verification.md).
+
+After the first release, set the GHCR package visibility to **Public** in its
+package settings so that the local GitOps cluster can pull it without registry
+credentials.
 
 ## API endpoints
 
@@ -84,8 +121,8 @@ cluster.
 | `POST /api/v1/orders` | Create an order |
 | `GET /docs` | OpenAPI UI |
 
-Orders are intentionally stored in memory. Persistence will be introduced in a
-later milestone when database reliability and backup exercises are added.
+Orders are intentionally stored in memory so the lab stays focused on delivery,
+reliability and security controls. A production database is outside its scope.
 
 ## Fault injection
 
@@ -105,7 +142,11 @@ Fault injection is disabled by default and must only be used in an isolated lab.
 ```text
 app/                  application source
 deploy/helm/          Kubernetes Helm chart
-docs/                 architecture notes and runbooks
+gitops/                Argo CD project, root app and applications
+observability/         Grafana dashboard and platform Helm values
+security/              Kyverno policies, Falco detections and threat model
+chaos/                 controlled load and failure exercises
+docs/                  architecture, demo, runbooks and postmortems
 infrastructure/kind/  local cluster definition
 scripts/              developer automation
 tests/                application tests
@@ -118,15 +159,14 @@ the delivery roadmap.
 ## Roadmap
 
 - [x] Application, tests, container and Helm foundation.
-- [ ] GitOps delivery with Argo CD.
-- [ ] Metrics, logs and traces with OpenTelemetry and the Grafana stack.
-- [ ] SLI/SLO definitions and error-budget burn alerts.
-- [ ] Kyverno policies and policy tests.
-- [ ] SBOM, keyless image signing and SLSA provenance.
-- [ ] Falco detections mapped to MITRE ATT&CK.
-- [ ] Chaos scenarios, incident response and postmortems.
+- [x] GitOps delivery with Argo CD.
+- [x] Metrics, logs and traces with OpenTelemetry and the Grafana stack.
+- [x] SLI/SLO definitions and error-budget burn alerts.
+- [x] Kyverno policies and policy tests.
+- [x] SBOM, keyless image signing and SLSA provenance.
+- [x] Falco detections mapped to MITRE ATT&CK.
+- [x] Chaos scenarios, incident response and postmortems.
 
 ## License
 
 This project is available under the [MIT License](LICENSE).
-

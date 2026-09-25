@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aegisops-load-generator
+  namespace: aegisops-dev
+  labels:
+    app.kubernetes.io/name: load-generator
+    app.kubernetes.io/part-of: aegisops
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: load-generator
+        app.kubernetes.io/part-of: aegisops
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fortio
+          image: fortio/fortio:1.69.1
+          args:
+            - load
+            - -qps
+            - "20"
+            - -t
+            - 5m
+            - -c
+            - "4"
+            - http://aegisops-aegisops/api/v1/orders
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+

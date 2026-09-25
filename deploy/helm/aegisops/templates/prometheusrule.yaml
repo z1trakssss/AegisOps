@@ -1,0 +1,52 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "aegisops.fullname" . }}
+  labels:
+    {{- include "aegisops.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: aegisops.slo.rules
+      rules:
+        - record: aegisops:http_requests:availability5m
+          expr: |
+            1 - (
+              sum(rate(aegis_http_requests_total{status=~"5.."}[5m]))
+              / clamp_min(sum(rate(aegis_http_requests_total[5m])), 0.000001)
+            )
+        - alert: AegisOpsHighErrorBudgetBurn
+          expr: |
+            (
+              sum(rate(aegis_http_requests_total{status=~"5.."}[1h]))
+              / clamp_min(sum(rate(aegis_http_requests_total[1h])), 0.000001)
+            ) > (14.4 * (1 - {{ .Values.prometheusRule.availabilityTarget }}))
+            and
+            (
+              sum(rate(aegis_http_requests_total{status=~"5.."}[5m]))
+              / clamp_min(sum(rate(aegis_http_requests_total[5m])), 0.000001)
+            ) > (14.4 * (1 - {{ .Values.prometheusRule.availabilityTarget }}))
+          for: 2m
+          labels:
+            severity: critical
+            service: orders-api
+          annotations:
+            summary: Orders API is rapidly consuming its error budget
+            runbook_url: https://github.com/z1trakssss/AegisOps/blob/main/docs/runbooks/orders-api-unavailable.md
+        - alert: AegisOpsHighLatency
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le) (rate(aegis_http_request_duration_seconds_bucket[5m]))
+            ) > {{ .Values.prometheusRule.latencyTargetSeconds }}
+          for: 10m
+          labels:
+            severity: warning
+            service: orders-api
+          annotations:
+            summary: Orders API p95 latency exceeds the SLO target
+            runbook_url: https://github.com/z1trakssss/AegisOps/blob/main/docs/runbooks/high-latency.md
+{{- end }}
